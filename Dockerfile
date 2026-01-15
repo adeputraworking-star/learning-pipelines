@@ -1,20 +1,35 @@
-# 1. Use official Node image
-FROM node:20-alpine
-
-# 2. Set working directory
+# =========================
+# Stage 1: Dependencies
+# =========================
+FROM node:20-alpine AS deps
 WORKDIR /app
 
-# 3. Copy package files first (better caching)
+ENV NODE_ENV=development
+
 COPY package*.json ./
+RUN npm ci --include=dev
 
-# 4. Install dependencies (clean & reproducible)
-RUN npm ci
-
-# 5. Copy source code
+# =========================
+# Stage 2: Test + Build
+# =========================
+FROM deps AS builder
 COPY . .
 
-# 6. Build TypeScript
+# 🔧 FIX permissions for npm binaries
+RUN chmod -R +x node_modules/.bin
+
+RUN npm run lint
+RUN npm test -- --coverage
 RUN npm run build
 
-# 7. Run app
+# =========================
+# Stage 3: Runtime
+# =========================
+FROM node:20-alpine
+WORKDIR /app
+
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+
 CMD ["node", "dist/src/index.js"]
