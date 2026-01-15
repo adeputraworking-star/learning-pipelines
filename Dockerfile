@@ -15,6 +15,9 @@ RUN npm ci --include=dev
 FROM deps AS builder
 COPY . .
 
+# 🔧 FIX permissions for npm binaries
+RUN chmod -R +x node_modules/.bin
+
 RUN npm run lint
 RUN npm test -- --coverage
 RUN npm run build
